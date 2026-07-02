@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Product_Class_Level__c</fullName>
+    <label>Product Class-Level</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>FG</fullName>
+                <default>true</default>
+                <label>FG</label>
+            </value>
+            <value>
+                <fullName>SAM</fullName>
+                <default>false</default>
+                <label>SAM</label>
+            </value>
+            <value>
+                <fullName>SP</fullName>
+                <default>false</default>
+                <label>SP</label>
+            </value>
+            <value>
+                <fullName>MKT</fullName>
+                <default>false</default>
+                <label>MKT</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

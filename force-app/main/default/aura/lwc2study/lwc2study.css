@@ -1,0 +1,26 @@
+.THIS {
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.THIS .input lightning-input{
+    display: inline-block;
+    width: 30%;
+}
+.THIS .input lightning-input:nth-child(2n), .THIS .input lightning-input:nth-child(2n-1){
+    margin-left: 2%;
+}
+.THIS .button{
+    padding: 15px;
+    text-align: center;
+}
+.THIS .button button{
+    /* 如果遇到样式优先级问题,可以使用important赋予最高优先级 */
+    /* important还是没生效 */
+    /* 你没选到节点 */
+    /* 下面还有important */
+    color: white !important; 
+    background-color: rgb(46, 132, 74) !important;
+    border: 0;
+}

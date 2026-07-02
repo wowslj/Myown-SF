@@ -1,0 +1,58 @@
+<aura:component  controller="LwcStudyOrderList" implements="forceCommunity:availableForAllPageTypes,force:appHostable,flexipage:availableForAllPageTypes" access="global">
+ 
+    <!-- Imports -->
+    <!-- <aura:import library="lightningcomponentdemo:mockdataFaker" property="mockdataLibrary"/> -->
+
+    <!-- attributes -->
+    <aura:attribute name="data" type="Object"/>
+    <aura:attribute name="datacopy" type="Object"/>
+    <aura:attribute name="columns" type="List"/>
+    <!-- <aura:attribute name="totalRecords" type="String" default="200"/> -->
+
+    <!-- <aura:attribute name="tailuo" type="String" default="泰罗"/> -->
+    <aura:attribute name="searchField" type="Map" default="{}"/>
+
+    <!-- handlers-->
+    <aura:handler name="init" value="{! this }" action="{! c.init }"/>
+
+    <aura:attribute name="typeOptions" type="List" default="[
+    {'label': 'A', 'value': 'A'},
+    {'label': 'B', 'value': 'B'},
+    ]"/>
+
+    <aura:attribute name="approvalStatusOptions" type="List" default="[
+    {'label': 'Draft', 'value': 'Draft'},
+    {'label': 'Approved', 'value': 'Approved'},
+    {'label': 'Reject', 'value': 'Reject'},
+    ]"/>
+
+<div>
+    <!-- lable -->
+    <p>Sales Orders</p>
+    <!-- search -->
+    <div class="input">
+        <lightning:input type="text" label="名称" value="{!v.searchField.Name}"/>
+        <lightning:input type="text" label="价格" value="{!v.searchField.Price}"/>
+        <lightning:combobox name="OrderType" label="类型" value="{!v.searchField.OrderType}" placeholder="选择订单类型" options="{! v.typeOptions }"/>
+        <!-- <lightning:input type="text" label="类型" value="{!v.searchField.OrderType}"/> -->
+        <!-- <lightning:input type="text" label="审批状态" value="{!v.searchField.ApprovalStatus}"/> -->
+        <lightning:combobox name="approvalStatus" label="审批状态" value="{!v.searchField.ApprovalStatus}" placeholder="选择审批状态" options="{! v.approvalStatusOptions }"/>
+        <p class="button">
+            <lightning:button variant="success" label="Search" title="Search" onclick="{!c.Search}" class="slds-m-left_x-small" />
+            <lightning:button variant="success" label="Reset" title="Reset" onclick="{!c.Reset}" class="slds-m-left_x-small" />
+        </p>
+    </div>
+    <!-- table -->
+    <div style="height: 300px">
+        <lightning:datatable
+                keyField="id"
+                data="{! v.data }"
+                columns="{! v.columns }"
+                hideCheckboxColumn="true"/>
+    </div>
+    <!-- footer -->
+    <div>
+        <!-- <c:CCM_ListPageFooter totalRecords="{! v.totalRecords}" /> -->
+    </div>
+</div>
+</aura:component>
