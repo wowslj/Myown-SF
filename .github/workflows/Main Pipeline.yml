@@ -1,0 +1,317 @@
+name: Main Pipeline
+ 
+on:
+  workflow_dispatch:
+    inputs:
+      SourceBranch:
+        description: 'Source Branch: Branch where metadata will be selected'
+        default: ''
+        required: true
+        type: string
+      TargetBranch:
+        description: 'Target Branch: Branch where metadata will be deployed'
+        default: ''
+        required: true
+        type: string
+      TestType:
+        required: true
+        default: 'No Test Run'
+        description: 'Test Type'
+        type: choice
+        options:
+          - Run Local Tests
+          - Run All Test In Org
+          - Detect Specific Test
+          - Run Specific Test
+          - No Test Run
+      TestList:
+        description: 'List of test classes to be executed (Eg. test1 test2)'
+        default: ''
+        required: false
+        type: string
+      DeploymentType:
+        required: true
+        default: 'Delta Deploy'
+        description: 'Deployment Type'
+        type: choice
+        options:
+          - Full Deploy
+          - Delta Deploy
+          - Check Deploy Full
+          - Check Deploy Delta
+          - Run Test
+      SourceScan:
+        required: false
+        default: false
+        description: 'Source Code Scan'
+        type: boolean
+      Merge:
+        required: false
+        default: true
+        description: 'Merge Branch After Deploy'
+        type: boolean
+      DeleteSourceBranch:
+        required: false
+        default: false
+        description: 'Delete Source Branch After Merge'
+        type: boolean
+      RunDistructivePackage:
+        required: false
+        default: false
+        description: 'Run Distructive Package'
+        type: boolean
+ 
+  workflow_call:
+    inputs:
+      SourceBranch:
+        description: 'Source Branch: Branch where metadata will be selected'
+        required: true
+        type: string
+      TargetBranch:
+        description: 'Target Branch: Branch where metadata will be deployed'
+        required: true
+        type: string
+      TestType:
+        required: true
+        description: 'Test Type'
+        type: string
+      TestList:
+        description: 'List of test classes to be executed'
+        default: ''
+        required: false
+        type: string
+      DeploymentType:
+        required: true
+        default: 'Delta Deploy'
+        description: 'Deployment Type'
+        type: string
+      SourceScan:
+        required: false
+        default: false
+        description: 'Source Code Scan'
+        type: boolean
+      Merge:
+        required: false
+        default: false
+        description: 'Merge Branch After Deploy'
+        type: boolean
+      DeleteSourceBranch:
+        required: false
+        default: false
+        description: 'Delete Source Branch After Merge'
+        type: boolean
+      RunDistructivePackage:
+        required: false
+        default: false
+        description: 'Run Distructive Package'
+        type: boolean
+    secrets:
+      SECURE_KEY:
+          required: true 
+      GH_PAT:
+          required: true
+ 
+jobs:
+  Main-Pipeline:
+    environment: ${{ inputs.TargetBranch }}
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT}}
+          ref: ${{ inputs.SourceBranch }}
+          fetch-depth: 0
+      - name: Print Inputs
+        run: |
+          echo -e "\n SourceBranch is ${{ inputs.SourceBranch }}, \n TargetBranch is ${{ inputs.TargetBranch }},\n TestType is ${{ inputs.TestType }},\n TestList is ${{ inputs.TestList }},\n DeploymentType is ${{ inputs.DeploymentType }} ,\n SourceScan is ${{ inputs.SourceScan }},\n Merge is ${{ inputs.Merge }},\n DeleteSourceBranch is ${{ inputs.DeleteSourceBranch }},\n RunDistructivePackage is ${{ inputs.RunDistructivePackage }}  "
+ 
+          ################################################## Validate Inputs
+           if  [ "${{ inputs.SourceBranch }}" == "${{ inputs.TargetBranch }}" ]; then
+                echo "operation allowed!";
+          elif [ "${{ inputs.SourceBranch }}" == "${{ vars.DEVELOPMENT_BRANCH_NAME }}" ] && [ "${{ inputs.TargetBranch }}" != "${{ vars.INTEGRATE_BRANCH_NAME }}" ] ; then
+                echo "1 ${{ inputs.SourceBranch }} to ${{ inputs.TargetBranch }} operation not allowed! "
+              exit 1
+          elif [ "${{ inputs.SourceBranch }}" == "${{ vars.INTEGRATE_BRANCH_NAME }}" ] && [ "${{ inputs.TargetBranch }}" != "${{ vars.QUALITY_BRANCH_NAME }}" ] ; then
+                echo "1 ${{ inputs.SourceBranch }} to ${{ inputs.TargetBranch }} operation not allowed! "
+              exit 1
+          elif [ "${{ inputs.SourceBranch }}" == "${{ vars.QUALITY_BRANCH_NAME }}" ] && [ "${{ inputs.TargetBranch }}" != "${{ vars.MAIN_BRANCH_NAME }}" ] ; then
+                echo "2 ${{ inputs.SourceBranch }} to ${{ inputs.TargetBranch }} operation not allowed! "
+              exit 1
+          fi
+ 
+      - name: 'Configures Environment'
+        run: |
+              npm -v
+              npm install @salesforce/cli --global
+              sf version
+              git config --global user.name "github-actions"
+              git config --global user.email "github-actions@pwc.com"
+
+ 
+      - name: "${{ inputs.DeploymentType }} Package"
+        run: |
+ 
+              ################################################## Generate Delta Package
+ 
+              if [ "${{ inputs.DeploymentType }}" == "Delta Deploy" ] || [ "${{ inputs.DeploymentType }}" == "Check Deploy Delta" ] ;then
+                echo y | sf plugins:install sfdx-git-delta 
+                sfdx sgd:source:delta --to origin/${{ inputs.SourceBranch }} --from origin/${{ inputs.TargetBranch }} --output-dir . 
+                cat package/package.xml
+              fi
+      - name: 'Authenticate To Org'
+        env:
+          SECURE_KEY: ${{ secrets.SECURE_KEY }}
+          CLIENT_ID: ${{ vars.CLIENT_ID }}
+          USER_NAME: ${{ vars.USER_NAME }}
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: | 
+              echo "${SECURE_KEY}" > server.key
+              sf org login jwt --client-id $CLIENT_ID --jwt-key-file server.key --username $USER_NAME --instance-url $DOMAIN
+ 
+      - name:  ${{ inputs.DeploymentType }}
+        env:
+          USER_NAME: ${{ vars.USER_NAME }}
+        run: | 
+             if [[ "${{ inputs.DeploymentType }}" == "Run Test" ]];then
+                sf apex run test --target-org $USER_NAME --test-level RunLocalTests  --code-coverage   --result-format human -w 120       
+             else
+ 
+                  ################################################## Identifies The Type Of Deployment
+ 
+                  pathfileXml=' '
+                  if [[ "${{ inputs.DeploymentType }}" == "Delta Deploy" ]];then
+                    pathfileXml=' --manifest package/package.xml '
+                  elif  [[ "${{ inputs.DeploymentType }}" == "Full Deploy" ]];then
+                    pathfileXml=' -d force-app/ '
+                  elif  [[ "${{ inputs.DeploymentType }}" == "Check Deploy Full" ]];then
+                    pathfileXml=' -d force-app/  --dry-run '
+                  elif [[ "${{ inputs.DeploymentType }}" == "Check Deploy Delta" ]];then
+                    pathfileXml=' --manifest package/package.xml --dry-run '
+                  fi
+ 
+                  ################################################## Identifies The Type Of Test
+ 
+                  testType='--test-level NoTestRun'
+                  if [[ "${{ inputs.TestType }}" == "Run All Test In Org" ]];then
+                    testType=' --test-level RunAllTestsInOrg '
+                  elif [[ "${{ inputs.TestType }}" == "Run Local Tests" ]];then
+                    testType=' --test-level RunLocalTests '
+                  elif [[ "${{ inputs.TestType }}" == "No Test Run" ]];then
+                    testType=' --test-level NoTestRun '
+                  elif [[ "${{ inputs.TestType }}" == "Run Specific Test" ]];then
+                      testType=" --test-level RunSpecifiedTests  --tests ${{ inputs.TestList }} "
+                  elif [ "${{ inputs.TestType }}" == "Detect Specific Test" ] && ( [ "${{ inputs.DeploymentType }}" == "Delta Deploy" ] || [ "${{ inputs.DeploymentType }}" == "Check Deploy Delta" ] ) ; then
+                    echo "Detect Specific Test" 
+                      ############################################## Scritp Detect Specific Test
+                      myPathfileXml='package/package.xml'
+                      pathApexClass='force-app/main/default/classes/';        # settare il path delle classi
+                      pathApexTrigger='force-app/main/default/triggers/';     # settare il path dei trigger
+                      tagToSearch='@TestClasses';                             # settare il tag da cercare 
+                      tagTestClass='@isTest';
+                      propertyType="";
+                      pathToRemove=$(echo $pathApexClass | sed 's/\//\\\//g')
+                      arrApexClass=();
+                      arrApextrigger=();
+ 
+                      if [  -f $myPathfileXml ]
+                          then
+ 
+                          #Parser XML per individuare la proprietà
+ 
+                          for i in $(tac "$myPathfileXml" | awk -F'[><]' '{print $3}');do
+                              if [[ "$i" == *"ApexClass"* ]]; then
+                                  propertyType="ApexClass";   # identifica il tipo di metadato ApexCalss
+                              elif [[ "$i" == *"ApexTrigger"* ]]; then
+                                  propertyType="ApexTrigger"; # identifica il tipo di metadato ApexTrigger
+                              elif [[ "$i" == *"<types>"* ]]; then
+                                  propertyType="";
+                              fi
+ 
+                              if [[ "$propertyType" == "ApexClass" && "$i" != *"ApexClass"* ]]; then        # Se il metadato individuato è una classe apex inserisco nell'array delle classiApex
+                                  arrApexClass+=( "$i" );
+                              elif [[ "$propertyType" == "ApexTrigger" && "$i" != *"ApexTrigger"* ]]; then  # Se il metadato individuato è un Trigger inserisco nell'array dei Trigger
+                                  arrApextrigger+=( "$i" );
+                              fi
+                          done
+ 
+                          fileToSearch='';
+                          for i in "${arrApexClass[@]}";do
+                             fileToSearch="$fileToSearch$pathApexClass$i.cls "; # lista delle classi in cui cercare il tag
+                          done
+ 
+                          for i in "${arrApextrigger[@]}";do
+                             fileToSearch="$fileToSearch$pathApexTrigger$i.trigger "; # lista dei trigger in cui cercare il tag
+                          done
+                          if [ "$fileToSearch" = "" ]; 
+                          then
+                              stringMod=$(grep -ril "$tagTestClass" $pathApexClass | head -n 1  | sed "s/$pathToRemove//Ig"  | sed 's/.cls//Ig')
+                            echo "$stringMod"
+ 
+                          else
+                            listClassFound=();
+                            listTest=();
+                            listClassFound=$(grep -ri "$tagToSearch" $fileToSearch  | sed "s/.*$tagToSearch//Ig" |sed 's/://g' | sed 's/ //g') # cerco le classi di test  nel path apexClass e trigger
+                            listTest=$(grep -ril "$tagTestClass" $fileToSearch  | sed 's/://g' | sed 's/.cls//Ig' | sed "s/$pathToRemove//Ig") # nel caso in cui la classe che sto analizzando sia già una classe di test
+                            allClass=("${listClassFound[@]}" "${listTest[@]}"); 
+                            #sortedUniqueString=($(echo "${allClass[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+ 
+                            function join { local IFS="$1"; shift; echo "$*"; }                                  
+                            stringMod=$(join " " ${allClass[@]})      
+ 
+                                  IFS=',' read -r -a classes <<< "$stringMod"
+                                  sortedUniqueString=($(echo "${stringMod[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+                            stringMod=$(join " " ${sortedUniqueString[@]} | sed 's/,/ /g')          # creo la stringa delle classi di test
+                            # echo "$stringMod"
+ 
+                          fi
+                      fi
+                    testType=" --test-level RunSpecifiedTests  --tests $stringMod " 
+                  elif [ "${{ inputs.TestType }}" == "Detect Specific Test" ] && [ "${{ inputs.DeploymentType }}" != "Delta Deploy" ] ;then
+                    testType=' --test-level RunAllTestsInOrg '
+ 
+                  fi
+ 
+                  ################################################## Deploy Command
+ 
+                  echo "sf project deploy start --target-org $USER_NAME  $pathfileXml $testType  -w 120"
+                  sf project deploy start --target-org $USER_NAME  $pathfileXml $testType  -w 120
+
+                  ################################################## Merge Command
+                  echo "merge branch "${{ inputs.Merge }}""
+                  if [ $? -eq 0 ]; then
+                      if [[ "${{ inputs.Merge }}" = "true" ]];then
+                        echo "merge branch"
+                        git fetch origin ${{ inputs.SourceBranch }}
+                        git checkout ${{ inputs.TargetBranch }}
+                        git merge origin/${{ inputs.SourceBranch }}
+                        git push
+ 
+                        if [[ "${{ env.DeleteSourceBranch }}" = "true" ]];then
+                                 if [ "${{ inputs.SourceBranch }}" != "${{ vars.DEVELOPMENT_BRANCH_NAME }}" ] && [ "${{ inputs.SourceBranch }}" != "${{ vars.INTEGRATE_BRANCH_NAME }}" ] && [ "${{ inputs.SourceBranch }}" != "${{ vars.QUALITY_BRANCH_NAME }}" ]  && [ "${{ inputs.SourceBranch }}" != "${{ vars.MAIN_BRANCH_NAME }}" ]; then
+                                    git push origin --delete "${{ inputs.SourceBranch }}" 
+                                  fi
+                        fi
+                      fi
+                  else
+                      codice_uscita=$?
+                      echo "Il codice di uscita del comando precedente è: $codice_uscita"
+                      exit 1 
+                  fi
+             fi
+      - name: 'Run Distructive Package'
+        env:
+          SECURE_KEY: ${{ secrets.SECURE_KEY }}
+          CLIENT_ID: ${{ vars.CLIENT_ID }}
+          USER_NAME: ${{ vars.USER_NAME }}
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: | 
+              echo "Run Distructive Package"
+               if [[ "${{ inputs.RunDistructivePackage }}" = "true" ]];then
+                  sf project deploy start --target-org $USER_NAME  -x manifest/destructivePackage/package.xml   --post-destructive-changes manifest/destructivePackage/destructiveChangesPost.xml  -w 120
+               fi
+               if [ $? -ne 0 ]; then
+                  codice_uscita=$?
+                  echo "Il codice di uscita del comando precedente è: $codice_uscita"
+                  exit 1 
+               fi
