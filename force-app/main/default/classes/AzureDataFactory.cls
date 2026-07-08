@@ -1,9 +1,9 @@
 /*
- * Used to generate data for test classes. 
- * setupDataAzure can be used in the setupData method that has @testSetup. This will allow for easily creating data for 
+ * Used to generate data for test classes.
+ * setupDataAzure can be used in the setupData method that has @testSetup. This will allow for easily creating data for
  * various test classes. Note that @testSetup does not allow for code coverage so you still need to have separate test class
- * for that one. 
- */ 
+ * for that one.
+ */
 public with sharing class AzureDataFactory {
 
     private static Integer SOURCEMDM_TYPE = 1;
@@ -11,7 +11,7 @@ public with sharing class AzureDataFactory {
 
     //需要保存的消息
     // private static Set<String> SAVE_EVENTYPE_MESSAGES = new Set<String>{'PartyEntityReevaluationCompleted','PartyEntitySupplementalDataChanged','PARTY VERIFICATION MODIFIED'};
-    
+
 
     //CES UAT 对于SFOA UAT
     // private static final String CES_AZURE_SERVICE_BUS_CONNECTION_STRING = 'Endpoint=sb://YOUR_NAMESPACE.servicebus.windows.net/;SharedAccessKeyName=YOUR_POLICY_NAME;SharedAccessKey=YOUR_SHARED_ACCESS_KEY;EntityPath=YOUR_QUEUE_NAME';
@@ -38,6 +38,7 @@ public with sharing class AzureDataFactory {
 
     private static String getAlEndPointByName(String name,String connectString){
         List<String> strs = connectString.split(';');
+        // hahah
         if(name.equals('nameSpace')){
             String str = strs.get(0).replace('Endpoint=sb://', '');
             return str.substring(0,str.indexOf('.'));
@@ -120,7 +121,7 @@ public with sharing class AzureDataFactory {
      public static String receiveMessageFromQueue(String queueName,Boolean saveMessage,Integer sourceType) {
         String messageBody = '';
         HttpRequest req = buildHttpSend(sourceType,queueName);
-        
+
         Http http = new Http();
         HttpResponse res = http.send(req);
 
@@ -206,13 +207,13 @@ public with sharing class AzureDataFactory {
     //     String policyKey = quePolicKey;
     //     //调用方法生成sasToken  用于http调用的安全验证
     //     String token = AzureGenerateToken.generateSasToken(resourceUri,policyName,policyKey);
-        
+
     //     req.setEndpoint(resourceUri+'/messages');
     //     req.setMethod('POST');
     //     req.setHeader('Authorization', token);
     //     req.setHeader('Content-Type', 'application/json');
     //     req.setBody(messageBody);
-        
+
     //     Http http = new Http();
     //     HttpResponse res = http.send(req);
 
@@ -228,8 +229,8 @@ public with sharing class AzureDataFactory {
 
 
 
-    public static AL_Message_Receive__c saveMessageToObj(String messageBody,Integer sourceType){           
-            // try{                
+    public static AL_Message_Receive__c saveMessageToObj(String messageBody,Integer sourceType){
+            // try{
             //     if(null != messageBody && messageBody.length() > 0){
             //         String messageId = '';
             //         Map<String, Object> jsonDataMap = (Map<String, Object>)JSON.deserializeUntyped(messageBody);
