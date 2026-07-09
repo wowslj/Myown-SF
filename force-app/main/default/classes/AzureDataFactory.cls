@@ -47,6 +47,8 @@ public with sharing class AzureDataFactory {
                 List<String> str1s = str.split('=');
                 if(str1s.get(0).equals(name)){
                    return str.substring(str.indexOf('=')+1,str.length());
+                }else {
+                    continue;
                 }
             }
         }
