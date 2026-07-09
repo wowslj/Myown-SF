@@ -5,7 +5,7 @@ global class AuzreServiceMessageBatch implements Database.Batchable<sObject>,Dat
 
     global Database.QueryLocator start(Database.BatchableContext BC) {
         //查询需要接收消息的队列或者主题配置，可以先写成配置数据，这里先用Account代替查询
-        String query = 'select id,name,Source_Type__c from AL_Message_Setting__c limit 150';
+        String query = 'select id,Source_Type__c from AL_Message_Setting__c limit 150';
         return Database.getQueryLocator(query);
     }
 
